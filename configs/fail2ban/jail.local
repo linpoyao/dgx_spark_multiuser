@@ -1,0 +1,26 @@
+# /etc/fail2ban/jail.local
+[DEFAULT]
+backend  = systemd
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+# Tailscale 網段與本機不封鎖：cloudflared 是從 127.0.0.1 連進 Hub，
+# 若不排除，任何一個外部使用者打錯密碼都會把「整條 tunnel」封掉。
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled  = true
+maxretry = 3
+bantime  = 24h
+# SSH 只在 Tailscale 介面上聽，所以這個 jail 擋的是「已進到 overlay 內」的暴力嘗試
+
+[jupyterhub]
+enabled  = true
+filter   = jupyterhub
+logpath  = /var/log/jupyterhub/jupyterhub.log
+backend  = polling
+maxretry = 5
+bantime  = 1h
+# 注意：經 Cloudflare Tunnel 進來的請求，來源 IP 一律是 127.0.0.1（已被 ignoreip 排除），
+# 這個 jail 只對「直接連到 8000 埠」的來源有效（例如校內網段或 Tailscale）。
+# 外網側的暴力登入防護要靠 Cloudflare Access（身分驗證）＋ WAF rate limiting，不是 fail2ban。

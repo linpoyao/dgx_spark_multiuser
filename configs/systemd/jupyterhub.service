@@ -1,0 +1,20 @@
+[Unit]
+Description=JupyterHub (DGX Spark lab)
+After=network-online.target docker.service tailscaled.service
+Requires=docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=/srv/jupyterhub/env
+ExecStart=/opt/jupyterhub/bin/jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
+WorkingDirectory=/srv/jupyterhub
+Restart=always
+RestartSec=5
+# Hub 需要 docker socket（這是唯一持有 socket 的身分）；使用者一律沒有 docker 權限
+SupplementaryGroups=docker
+NoNewPrivileges=true
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

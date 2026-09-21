@@ -1,0 +1,10 @@
+# 沙盒版使用者映像：與真機的 lab/pytorch-arm64 角色相同（提供 jupyterhub-singleuser），
+# 只是沒有 CUDA/PyTorch。ca-bundle 只是為了通過沙盒的 TLS 代理，真機不需要。
+FROM lab/ubuntu-noble-base:v1
+COPY ca-bundle.crt /etc/ssl/certs/ca-certificates.crt
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir "jupyterhub==6.0.0" jupyterlab numpy pydicom
+RUN mkdir -p /workspace && chmod 0777 /workspace
+ENV PATH=/opt/venv/bin:$PATH HOME=/workspace PYTHONNOUSERSITE=1 JUPYTER_RUNTIME_DIR=/tmp/jupyter-runtime
+WORKDIR /workspace
+CMD ["jupyterhub-singleuser"]

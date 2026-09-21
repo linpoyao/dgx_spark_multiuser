@@ -1,0 +1,21 @@
+# lab/radiomics-arm64:2026.09 —— 只給 radiomics 特徵抽取用的獨立映像
+# 原因（實測）：pyradiomics 3.1.0 在 Python 3.12 完全裝不起來，且與 CPU 架構無關：
+#   1) setup.py 建置期 import numpy 但沒宣告在 build-system.requires -> 隔離建置必失敗
+#   2) vendored versioneer 使用 configparser.SafeConfigParser（Python 3.12 已移除）
+#   3) 把 versioneer patch 掉之後仍失敗：PyPI 的 sdist 漏包 radiomics/src/cmatrices.h
+# 因此固定在 Python 3.11，並直接從 GitHub repo（含完整 C 原始碼）安裝。
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential git && rm -rf /var/lib/apt/lists/*
+
+# numpy 先裝好，並關掉 build isolation（pyradiomics 建置期需要 numpy 的 headers）
+RUN pip install --no-cache-dir "numpy<2" setuptools wheel
+RUN pip install --no-cache-dir --no-build-isolation \
+      "git+https://github.com/AIM-Harvard/pyradiomics.git@v3.1.0"
+RUN pip install --no-cache-dir SimpleITK pydicom pandas pyyaml
+
+# 驗收：build 完成後應能列出特徵類別
+RUN python -c "from radiomics import featureextractor; \
+  print(sorted(featureextractor.RadiomicsFeatureExtractor().featureClassNames))"
+WORKDIR /work

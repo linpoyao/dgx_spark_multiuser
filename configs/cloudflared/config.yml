@@ -1,0 +1,14 @@
+# /etc/cloudflared/config.yml —— 由主機主動向 Cloudflare 建立連線，防火牆 0 個 inbound port
+tunnel: dgx-spark-lab
+credentials-file: /etc/cloudflared/dgx-spark-lab.json
+originRequest:
+  connectTimeout: 30s
+  noTLSVerify: false
+ingress:
+  - hostname: jupyter.lab.example.edu.tw
+    service: http://127.0.0.1:8000
+    originRequest:
+      # JupyterLab 需要 websocket；cloudflared 預設支援，這裡只延長閒置時間
+      keepAliveTimeout: 90s
+      httpHostHeader: jupyter.lab.example.edu.tw
+  - service: http_status:404

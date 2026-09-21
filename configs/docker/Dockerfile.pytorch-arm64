@@ -1,0 +1,35 @@
+# lab/pytorch-arm64:2026.09 —— 使用者容器主映像（linux/arm64，DGX Spark GB10）
+# 建置：docker build --platform linux/arm64 -t lab/pytorch-arm64:2026.09 \
+#         -f configs/docker/Dockerfile.pytorch-arm64 .
+# tag 即環境版本；論文附錄直接引用這個 tag 就是完整環境描述。
+FROM nvcr.io/nvidia/pytorch:25.08-py3
+
+# JupyterHub 以 DockerSpawner 啟動時需要 jupyterhub-singleuser 與 jupyterlab
+# （版本要與 Hub 同一 major，否則 /hub/api 版本不合會起不來）
+RUN pip install --no-cache-dir \
+      "jupyterhub==6.*" jupyterlab notebook ipywidgets
+
+# 醫學影像相依：以下全部在 linux/aarch64 有可用 wheel（見 tests/audit_arm64_wheels.py 稽核結果）
+#   純 Python：pydicom nibabel highdicom dicom2nifti monai torchio batchgenerators
+#              nnunetv2 lungmask TotalSegmentator timm einops transformers
+#   aarch64 wheel（含 cpXY-abi3）：SimpleITK itk opencv-python-headless numpy scipy
+#              pandas scikit-learn scikit-image h5py connected-components-3d xgboost
+RUN pip install --no-cache-dir \
+      pydicom nibabel highdicom dicom2nifti pylibjpeg \
+      SimpleITK itk opencv-python-headless \
+      scikit-image scikit-learn pandas h5py connected-components-3d \
+      monai torchio nnunetv2 lungmask TotalSegmentator \
+      timm einops transformers tensorboard optuna matplotlib tqdm pyyaml
+
+# 不要在這個映像裡裝 pyradiomics：它只有 sdist，且 3.1.0 在 Python 3.12 建置期會失敗
+# （vendored versioneer 用了已被移除的 configparser.SafeConfigParser，
+#   patch 掉之後 sdist 又缺 cmatrices.h）。radiomics 請用 Dockerfile.radiomics-arm64。
+
+# 容器以使用者自己的 UID:GID 執行（由 pre_spawn_hook 指定），所以這裡不建立固定使用者，
+# 只把可能被寫入的路徑放寬，避免非 root UID 起不來。
+RUN mkdir -p /workspace && chmod 0777 /workspace
+ENV HOME=/workspace \
+    PYTHONNOUSERSITE=1 \
+    JUPYTER_RUNTIME_DIR=/tmp/jupyter-runtime \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+WORKDIR /workspace

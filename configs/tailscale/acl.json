@@ -1,0 +1,42 @@
+{
+  "//": "Tailscale ACL —— 決定誰能連到 Spark 的哪個 port。SSH 只在 overlay 內可見。",
+  "tagOwners": {
+    "tag:spark": ["autogroup:admin"],
+    "tag:lab-member": ["autogroup:admin"]
+  },
+  "groups": {
+    "group:lab-admin": ["poyao@example.edu.tw"],
+    "group:lab-researcher": ["alice@example.edu.tw", "bob@example.edu.tw"],
+    "group:lab-guest": ["guest1@example.edu.tw"]
+  },
+  "acls": [
+    {
+      "//": "admin：SSH ＋ JupyterHub ＋ DGX Dashboard",
+      "action": "accept",
+      "src": ["group:lab-admin"],
+      "dst": ["tag:spark:22", "tag:spark:8000", "tag:spark:8080"]
+    },
+    {
+      "//": "researcher：SSH（VS Code Remote）＋ JupyterHub",
+      "action": "accept",
+      "src": ["group:lab-researcher"],
+      "dst": ["tag:spark:22", "tag:spark:8000"]
+    },
+    {
+      "//": "guest：只能走 JupyterHub 網頁，沒有 SSH",
+      "action": "accept",
+      "src": ["group:lab-guest"],
+      "dst": ["tag:spark:8000"]
+    }
+  ],
+  "ssh": [
+    {
+      "action": "check",
+      "//": "Tailscale SSH 每 12 小時重新驗證身分；不需要在主機上散發公鑰",
+      "src": ["group:lab-admin", "group:lab-researcher"],
+      "dst": ["tag:spark"],
+      "users": ["autogroup:nonroot"],
+      "checkPeriod": "12h"
+    }
+  ]
+}

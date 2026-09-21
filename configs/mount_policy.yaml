@@ -1,0 +1,36 @@
+# mount_policy.yaml —— 「掛載清單就是存取清單」的唯一真實來源（single source of truth）
+# jupyterhub_config.py 在每次 spawn 前依此檔產生 volumes 並自我驗證，違規則拒絕啟動容器。
+version: 1
+
+# 任何情況都不得出現在容器掛載中（含子路徑、.. 迴避、symlink 指向）
+deny:
+  - /data/raw            # 原始 PHI：去識別化只在 admin 的主機 shell 做
+  - /var/run/docker.sock # 掛進去等同給 root
+  - /run/docker.sock
+  - /etc
+  - /root
+  - /home
+  - /                    # 防 -v /:/host
+
+# 只允許以 ro 掛載的前綴（寫成政策，避免有人手改成 rw）
+readonly_prefixes:
+  - /data/deid
+  - /data/public
+
+# 所有人共同的掛載
+common:
+  - {host: "/workspace/{username}", container: "/workspace",           mode: rw}
+  - {host: "/data/public/luna16",   container: "/data/public/luna16",  mode: ro}
+  - {host: "/shared/models",        container: "/shared/models",       mode: rw}
+
+# 依題目群組追加（使用者屬於哪個群組就掛哪一份）
+groups:
+  lung-research:
+    - {host: "/data/deid/lung",     container: "/data/deid/lung",      mode: ro}
+  prostate-research:
+    - {host: "/data/deid/prostate", container: "/data/deid/prostate",  mode: ro}
+
+# 特定帳號覆寫群組掛載（短期協作者只看單一 cohort，與主機 ACL 一致）
+user_overrides:
+  guest1:
+    - {host: "/data/deid/lung/cohort2018", container: "/data/deid/lung/cohort2018", mode: ro}
